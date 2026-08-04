@@ -12,10 +12,7 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
-  // Explicitly target the Node runtime on Vercel. The default `vercel` web preset
-  // (also reachable via a NITRO_PRESET=vercel env var) splits createMiddleware into
-  // a circular ESM pair and crashes SSR with "TypeError: createMiddleware is not a
-  // function". The `node-server` preset bundles the same code into a single module and
-  // runs cleanly on Vercel's classic Node runtime.
-  nitro: { preset: "node-server" },
+  // No explicit nitro preset: let the deployment target auto-detect it.
+  // On Vercel this project uses the `tanstack-start-lovable` framework builder,
+  // which builds and deploys without a vercel.json or a pinned preset.
 });
