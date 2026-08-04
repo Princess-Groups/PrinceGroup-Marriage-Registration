@@ -12,7 +12,12 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
-  // No explicit nitro preset: let the deployment target auto-detect it.
-  // On Vercel this project uses the `tanstack-start-lovable` framework builder,
-  // which builds and deploys without a vercel.json or a pinned preset.
+  nitro: {
+    preset: "vercel",
+    // Fix "createMiddleware is not a function" (TanStack Router #7459): nitro v3's
+    // chunk-splitting emits the TanStack Start server entry and createMiddleware as a
+    // circular ESM pair that crashes SSR. Bundling into a single chunk resolves the
+    // evaluation-order crash and lets SSR boot.
+    inlineDynamicImports: true,
+  },
 });
