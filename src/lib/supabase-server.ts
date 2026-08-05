@@ -221,6 +221,79 @@ export const savePayment = createServerFn()
     return { ok: true };
   });
 
+/* ---------------------------------------------------------------------------
+ * Razorpay
+ * ------------------------------------------------------------------------- */
+
+export type CreatePaymentOrderInput = {
+  registration_id: string;
+  amount: number; // rupees
+};
+
+export type CreatePaymentOrderResult =
+  | { ok: true; order_id: string; amount_paise: number; key_id: string }
+  | { ok: false; error: string };
+
+/**
+ * Create a Razorpay order for a registration so the client can run the
+ * checkout. Secrets are read server-side only — `RAZORPAY_KEY_ID` and
+ * `RAZORPAY_KEY_SECRET` must be set in the deployment environment. When they
+ * are missing (e.g. local dev), the server returns `{ ok: false }` so the UI
+ * can fall back gracefully instead of crashing.
+ */
+export const createPaymentOrder = createServerFn()
+  .validator((d: CreatePaymentOrderInput) => d)
+  .handler(async ({ data }): Promise<CreatePaymentOrderResult> => {
+    const keyId =
+      (typeof process !== "undefined" ? process.env.RAZORPAY_KEY_ID : undefined) ??
+      (import.meta.env.RAZORPAY_KEY_ID as string | undefined);
+    const keySecret =
+      (typeof process !== "undefined" ? process.env.RAZORPAY_KEY_SECRET : undefined) ??
+      (import.meta.env.RAZORPAY_KEY_SECRET as string | undefined);
+
+    if (!keyId || !keySecret) {
+      return {
+        ok: false,
+        error: "Razorpay is not configured yet. Please pay by UPI or contact support.",
+      };
+    }
+
+    const amountPaise = Math.round(data.amount * 100);
+    const auth = btoa(`${keyId}:${keySecret}`);
+    let res: Response;
+    try {
+      res = await fetch("https://api.razorpay.com/v1/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${auth}`,
+        },
+        body: JSON.stringify({
+          amount: amountPaise,
+          currency: "INR",
+          receipt: `reg_${data.registration_id}`,
+          notes: { registration_id: data.registration_id },
+        }),
+      });
+    } catch (err) {
+      return { ok: false, error: "Could not reach Razorpay. Please try again." };
+    }
+
+    if (!res.ok) {
+      let detail = "";
+      try {
+        detail = JSON.stringify(await res.json());
+      } catch {}
+      return {
+        ok: false,
+        error: `Razorpay order failed (${res.status}). ${detail}`.trim(),
+      };
+    }
+
+    const order = (await res.json()) as { id: string; amount: number };
+    return { ok: true, order_id: order.id, amount_paise: order.amount, key_id: keyId };
+  });
+
 /**
  * Mint a signed upload URL for one document. The client PUTs the file bytes
  * directly to this URL (signed, 10-minute TTL), so large files never pass

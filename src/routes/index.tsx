@@ -7,13 +7,13 @@ import {
   FileText,
   IndianRupee,
   Loader2,
-  QrCode,
   ShieldCheck,
   Upload,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
+  createPaymentOrder,
   finalizeRegistration,
   getDocumentUploadUrl,
   saveBasicDetails,
@@ -68,7 +68,10 @@ const T = {
     payNow: "Pay ₹99",
     paid: "Payment Successful",
     processing: "Processing…",
-    scanUpi: "Scan UPI QR",
+    paySecure: "Secure payment via Razorpay",
+    payUpi: "Pay with UPI, cards, net banking & more",
+    payBtn: "Pay ₹99 Now",
+    payFail: "Payment could not be started. Please try again.",
     detailsTitle: "Personal Details & Document Upload",
     detailsDesc:
       "Please provide personal details and upload the required documents. All fields are mandatory.",
@@ -97,7 +100,10 @@ const T = {
     payNow: "₹99 செலுத்தவும்",
     paid: "பணம் வெற்றிகரமாக செலுத்தப்பட்டது",
     processing: "செயலாக்கம்…",
-    scanUpi: "UPI QR ஸ்கேன் செய்யவும்",
+    paySecure: "Razorpay மூலம் பாதுகாப்பான கட்டணம்",
+    payUpi: "UPI, கார்டுகள், நெட் பேங்கிங் மற்றும் பலவற்றில் செலுத்தவும்",
+    payBtn: "இப்போது ₹99 செலுத்தவும்",
+    payFail: "கட்டணத்தை தொடங்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
     detailsTitle: "தனிப்பட்ட விவரங்கள் & ஆவணங்கள் பதிவேற்றம்",
     detailsDesc:
       "தனிப்பட்ட விவரங்களை வழங்கி தேவையான ஆவணங்களை பதிவேற்றவும். அனைத்து புலங்களும் கட்டாயம்.",
@@ -126,7 +132,10 @@ const T = {
     payNow: "₹99 അടയ്ക്കുക",
     paid: "പേയ്‌മെന്റ് വിജയകരം",
     processing: "പ്രോസസ്സിംഗ്…",
-    scanUpi: "UPI QR സ്കാൻ ചെയ്യുക",
+    paySecure: "Razorpay വഴി സുരക്ഷിത പേയ്‌മെന്റ്",
+    payUpi: "UPI, കാർഡുകൾ, നെറ്റ് ബാങ്കിംഗ് മുതലായവ ഉപയോഗിച്ച് അടയ്ക്കുക",
+    payBtn: "ഇപ്പോൾ ₹99 അടയ്ക്കുക",
+    payFail: "പേയ്‌മെന്റ് ആരംഭിക്കാനായില്ല. വീണ്ടും ശ്രമിക്കുക.",
     detailsTitle: "വ്യക്തിഗത വിവരങ്ങൾ & രേഖകൾ അപ്‌ലോഡ്",
     detailsDesc:
       "വ്യക്തിഗത വിവരങ്ങൾ നൽകി ആവശ്യമായ രേഖകൾ അപ്‌ലോഡ് ചെയ്യുക. എല്ലാ ഫീൽഡുകളും നിർബന്ധമാണ്.",
@@ -356,7 +365,7 @@ function PortalPage() {
           data: {
             registration_id: data.regId,
             status: data.paymentStatus,
-            method: data.paymentRef ? "UPI" : undefined,
+            method: data.paymentRef ? "Razorpay" : undefined,
             reference: data.paymentRef,
           },
         }).catch(() => {});
@@ -669,63 +678,9 @@ function PaymentPage({
   const [processing, setProcessing] = useState(false);
   const paid = data.paymentStatus === "paid";
 
-  const UPI_ID = "9489359755@okaxis";
-  const MERCHANT_NAME = "Prince Group Of Company / Jeba Prince";
-  const ACCOUNT_NO = "4384000100054007";
-  const IFSC = "PUNB0438400";
-  const AMOUNT = "99.00";
+  const AMOUNT = 99;
 
-  // --- UPI helpers (NPCI spec) -------------------------------------------
-  // tr / tid must be unique per attempt and strictly alphanumeric (<=35 chars).
-  const alnum = (s: string) => s.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
-
-  function newTxnRef() {
-    const base = alnum(data.regId || "PGMRP").slice(0, 12) || "PGMRP";
-    const stamp = Date.now().toString(36).toUpperCase();
-    const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
-    return `${base}${stamp}${alnum(rand)}`.slice(0, 35);
-  }
-
-  function buildUpiUri(tr: string, tid: string) {
-    // Only NPCI-standard params. Note: `mam`/`mc`/`mode`/`orgid` are merchant-
-    // only fields — sending them from a P2P VPA makes GPay reject the txn
-    // ("exceeded the bank limit"), so they are deliberately omitted.
-    const params: Array<[string, string]> = [
-      ["pa", UPI_ID],
-      ["pn", MERCHANT_NAME],
-      ["am", AMOUNT],
-      ["cu", "INR"],
-      ["tr", tr],
-      ["tid", tid],
-      ["tn", "Marriage Registration Fee"],
-    ];
-    // Manual encoding: URLSearchParams turns spaces into "+", which some UPI
-    // apps do not decode. %20 is required.
-    const qs = params
-      .map(([k, v]) => `${k}=${encodeURIComponent(v).replace(/%20/g, "%20")}`)
-      .join("&");
-    return `upi://pay?${qs}`;
-  }
-
-  function validateUpiUri(uri: string) {
-    const errors: string[] = [];
-    const q = uri.split("?")[1] ?? "";
-    const p = new URLSearchParams(q);
-    if (!/^[\w.\-]{2,}@[A-Za-z]{2,}$/.test(p.get("pa") ?? "")) errors.push("invalid pa");
-    if (!(p.get("pn") ?? "").trim()) errors.push("missing pn");
-    if (!/^\d+\.\d{2}$/.test(p.get("am") ?? "")) errors.push("invalid am");
-    if (p.get("cu") !== "INR") errors.push("invalid cu");
-    if (!/^[A-Za-z0-9]{1,35}$/.test(p.get("tr") ?? "")) errors.push("invalid tr");
-    if (!/^[A-Za-z0-9]{1,35}$/.test(p.get("tid") ?? "")) errors.push("invalid tid");
-    if (!(p.get("tn") ?? "").trim()) errors.push("missing tn");
-    return errors;
-  }
-
-  const qrImage = "/prince-upi-qr.jpeg";
-
-
-  // Auto-redirect once payment status flips to "paid" (covers both interactive
-  // and manual verification paths).
+  // Auto-redirect once payment status flips to "paid".
   useEffect(() => {
     if (paid) {
       const id = window.setTimeout(onPaid, 600);
@@ -733,97 +688,67 @@ function PaymentPage({
     }
   }, [paid, onPaid]);
 
-  function markPaid(method: string, tr: string) {
-    console.info("[UPI] response: SUCCESS (returned from app)", { method, tr });
-    onChange({ ...data, paymentStatus: "paid", paymentRef: tr });
-    setProcessing(false);
-    toast.success(`${t.paid} · ${method}`);
-  }
-
-  // Guards against duplicate/rapid-fire launches creating parallel requests.
+  // Guard against duplicate/rapid-fire launches.
   const inFlight = useRef(false);
-  const usedRefs = useRef<Set<string>>(new Set());
 
-  function launchUpi(appScheme?: string, label = "UPI") {
+  function startRazorpay() {
     if (paid || processing || inFlight.current) return;
-
-    let tr = newTxnRef();
-    while (usedRefs.current.has(tr)) tr = newTxnRef();
-    usedRefs.current.add(tr);
-    const tid = `T${tr}`.slice(0, 35);
-
-    const uri = buildUpiUri(tr, tid);
-    const errors = validateUpiUri(uri);
-    if (errors.length) {
-      console.error("[UPI] invalid payment link", { uri, errors });
-      toast.error("Payment link could not be generated. Please scan the QR code.");
-      return;
-    }
-
-    console.info("[UPI] request", { app: label, tr, tid, amount: AMOUNT, pa: UPI_ID, uri });
-
     inFlight.current = true;
     setProcessing(true);
 
-    const link = appScheme ? appScheme + uri.slice("upi:".length) : uri;
-    const start = Date.now();
-    let settled = false;
-
-    const cleanup = () => {
-      window.clearTimeout(timer);
-      document.removeEventListener("visibilitychange", onVisibility);
-      inFlight.current = false;
-    };
-
-    // No UPI app handled the intent → treat as FAILURE to launch.
-    const timer = window.setTimeout(() => {
-      if (settled) return;
-      if (Date.now() - start >= 1800 && document.visibilityState === "visible") {
-        settled = true;
-        cleanup();
-        setProcessing(false);
-        console.warn("[UPI] response: FAILED — no UPI app handled the intent", { tr });
-        toast.message("No UPI app detected. Please scan the QR code to pay.");
-      }
-    }, 2000);
-
-    const onVisibility = () => {
-      if (document.visibilityState === "hidden") {
-        // App opened. Wait for the user to come back and decide success/cancel.
-        window.clearTimeout(timer);
-        document.removeEventListener("visibilitychange", onVisibility);
-        const leftAt = Date.now();
-        const onReturn = () => {
-          if (document.visibilityState !== "visible" || settled) return;
-          document.removeEventListener("visibilitychange", onReturn);
-          settled = true;
+    createPaymentOrder({ data: { registration_id: data.regId, amount: AMOUNT } })
+      .then(async (res) => {
+        if (!res.ok) {
+          setProcessing(false);
           inFlight.current = false;
-          const elapsed = Date.now() - leftAt;
-          if (elapsed < 4000) {
-            // Back almost immediately → user cancelled / dismissed the app.
+          toast.error(res.error || t.payFail);
+          return;
+        }
+
+        // Load Razorpay checkout on demand.
+        if (typeof (window as any).Razorpay === "undefined") {
+          await new Promise<void>((resolve, reject) => {
+            const s = document.createElement("script");
+            s.src = "https://checkout.razorpay.com/v1/checkout.js";
+            s.async = true;
+            s.onload = () => resolve();
+            s.onerror = () => reject(new Error("checkout.js failed to load"));
+            document.body.appendChild(s);
+          });
+        }
+
+        const Rz = (window as any).Razorpay;
+        const opts = {
+          key: res.key_id,
+          amount: res.amount_paise,
+          currency: "INR",
+          name: "Prince Group Of Company",
+          description: "Marriage Registration Fee",
+          order_id: res.order_id,
+          handler: (payload: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
+            onChange({ ...data, paymentStatus: "paid", paymentRef: payload.razorpay_payment_id });
             setProcessing(false);
-            console.warn("[UPI] response: CANCELLED by user", { tr, elapsed });
-            toast.message("Payment cancelled. You can retry or scan the QR code.");
-          } else {
-            markPaid(label, tr);
-          }
+            inFlight.current = false;
+            toast.success(`${t.paid} · Razorpay`);
+            // savePayment is fired by the parent when navigating to the next step.
+          },
+          modal: {
+            ondismiss: () => {
+              setProcessing(false);
+              inFlight.current = false;
+            },
+          },
+          theme: { color: "#556B2F" },
         };
-        document.addEventListener("visibilitychange", onReturn);
-      }
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-
-    try {
-      window.location.href = link;
-    } catch (err) {
-      settled = true;
-      cleanup();
-      setProcessing(false);
-      console.error("[UPI] response: FAILED to open app", { tr, err });
-      toast.error("Unable to open UPI app.");
-    }
+        const rzp = new Rz(opts);
+        rzp.open();
+      })
+      .catch(() => {
+        setProcessing(false);
+        inFlight.current = false;
+        toast.error(t.payFail);
+      });
   }
-
 
   return (
     <Card
@@ -845,10 +770,16 @@ function PaymentPage({
             </button>
           ) : (
             <button
-              onClick={() => markPaid("Manual", newTxnRef())}
-              className="text-xs font-medium text-muted-foreground underline-offset-4 hover:underline"
+              onClick={startRazorpay}
+              disabled={processing}
+              className="inline-flex items-center gap-2 rounded-[14px] bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-[color:var(--olive-deep)] disabled:opacity-60"
             >
-              I've already paid
+              {processing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ShieldCheck className="h-4 w-4" />
+              )}
+              {t.payBtn}
             </button>
           )}
         </>
@@ -861,61 +792,30 @@ function PaymentPage({
           </div>
           <div className="mt-2 flex items-baseline justify-center gap-1 font-display text-5xl font-semibold text-primary">
             <IndianRupee className="h-8 w-8" />
-            99
+            {AMOUNT}
           </div>
         </div>
 
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <ShieldCheck className="h-4 w-4 text-primary" />
+          <span>{t.paySecure}</span>
+        </div>
+
+        <p className="max-w-xs text-xs text-muted-foreground">{t.payUpi}</p>
+
         <button
           type="button"
-          onClick={() => launchUpi(undefined, "UPI")}
+          onClick={startRazorpay}
           disabled={paid || processing}
           className="inline-flex h-14 items-center gap-2 rounded-[14px] bg-primary px-10 text-lg font-semibold text-primary-foreground shadow-sm transition hover:bg-[color:var(--olive-deep)] disabled:opacity-60"
         >
           {processing ? (
             <Loader2 className="h-5 w-5 animate-spin" />
           ) : (
-            <QrCode className="h-5 w-5" />
+            <ShieldCheck className="h-5 w-5" />
           )}
           {t.payNow}
         </button>
-
-        {!paid && (
-          <button
-            type="button"
-            onClick={() => launchUpi(undefined, "UPI")}
-            className="h-36 w-36 rounded-[14px] border border-border bg-white p-2 transition hover:border-[color:var(--olive)] hover:shadow-md"
-            aria-label="Pay via UPI QR code"
-          >
-            <img
-              src={qrImage}
-              alt="UPI QR code"
-              className="h-full w-full object-contain"
-              loading="lazy"
-            />
-          </button>
-        )}
-
-        {!paid && (
-          <div className="w-full max-w-sm rounded-[14px] border border-border bg-[color:var(--cream)]/60 p-4 text-left">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--olive-deep)]">
-              {MERCHANT_NAME}
-            </div>
-            <dl className="space-y-1.5 text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-muted-foreground">UPI ID</dt>
-                <dd className="font-mono font-medium text-foreground select-all">{UPI_ID}</dd>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-muted-foreground">Account No.</dt>
-                <dd className="font-mono font-medium text-foreground select-all">{ACCOUNT_NO}</dd>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-muted-foreground">IFSC</dt>
-                <dd className="font-mono font-medium text-foreground select-all">{IFSC}</dd>
-              </div>
-            </dl>
-          </div>
-        )}
       </div>
     </Card>
   );

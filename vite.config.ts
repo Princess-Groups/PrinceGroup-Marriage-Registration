@@ -19,5 +19,12 @@ export default defineConfig({
     // circular ESM pair that crashes SSR. Bundling into a single chunk resolves the
     // evaluation-order crash and lets SSR boot.
     inlineDynamicImports: true,
+    routeRules: {
+      // Never cache the HTML document — every request re-validates so a fresh
+      // deploy is visible immediately (no stale page after redeploys).
+      "/**": { headers: { "cache-control": "no-cache, no-store, must-revalidate" } },
+      // Fingerprinted assets are immutable by content hash — long cache is correct.
+      "/assets/**": { headers: { "cache-control": "public, max-age=31536000, immutable" } },
+    },
   },
 });
