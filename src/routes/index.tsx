@@ -1,5 +1,4 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import princeUpiQr from "@/assets/prince-upi-qr.jpeg.asset.json";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -670,8 +669,10 @@ function PaymentPage({
   const [processing, setProcessing] = useState(false);
   const paid = data.paymentStatus === "paid";
 
-  const UPI_ID = "9489359755@okbizaxis";
-  const MERCHANT_NAME = "Prince Group Of Company";
+  const UPI_ID = "9489359755@okaxis";
+  const MERCHANT_NAME = "Prince Group Of Company / Jeba Prince";
+  const ACCOUNT_NO = "4384000100054007";
+  const IFSC = "PUNB0438400";
   const AMOUNT = "99.00";
 
   // --- UPI helpers (NPCI spec) -------------------------------------------
@@ -720,7 +721,7 @@ function PaymentPage({
     return errors;
   }
 
-  const qrImage = princeUpiQr.url;
+  const qrImage = "/prince-upi-qr.jpeg";
 
 
   // Auto-redirect once payment status flips to "paid" (covers both interactive
@@ -892,6 +893,28 @@ function PaymentPage({
               loading="lazy"
             />
           </button>
+        )}
+
+        {!paid && (
+          <div className="w-full max-w-sm rounded-[14px] border border-border bg-[color:var(--cream)]/60 p-4 text-left">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--olive-deep)]">
+              {MERCHANT_NAME}
+            </div>
+            <dl className="space-y-1.5 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">UPI ID</dt>
+                <dd className="font-mono font-medium text-foreground select-all">{UPI_ID}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">Account No.</dt>
+                <dd className="font-mono font-medium text-foreground select-all">{ACCOUNT_NO}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">IFSC</dt>
+                <dd className="font-mono font-medium text-foreground select-all">{IFSC}</dd>
+              </div>
+            </dl>
+          </div>
         )}
       </div>
     </Card>

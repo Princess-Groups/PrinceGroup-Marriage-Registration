@@ -12,7 +12,6 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteChrome";
-import logoAsset from "@/assets/prince-logo.png.asset.json";
 
 function NotFoundComponent() {
   return (
@@ -98,8 +97,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: logoAsset.url, type: "image/png" },
-      { rel: "apple-touch-icon", href: logoAsset.url },
+      { rel: "icon", href: "/prince-logo.png", type: "image/png" },
+      { rel: "apple-touch-icon", href: "/prince-logo.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {

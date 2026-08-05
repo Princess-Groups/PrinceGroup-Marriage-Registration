@@ -1,11 +1,11 @@
-import logoAsset from "@/assets/prince-logo.png.asset.json";
+const logoUrl = "/prince-logo.png";
 
 export function SiteHeader() {
   return (
     <header className="border-b border-[color:var(--olive)]/15 bg-[color:var(--cream)]">
       <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3 sm:px-6 sm:py-4">
         <img
-          src={logoAsset.url}
+          src={logoUrl}
           alt="Prince Group of Companies"
           className="h-11 w-11 shrink-0 sm:h-14 sm:w-14"
         />
@@ -28,7 +28,7 @@ export function SiteFooter() {
       <div className="mx-auto flex max-w-5xl flex-col items-center gap-3 px-4 py-6 text-center sm:flex-row sm:justify-between sm:text-left sm:px-6">
         <div className="flex items-center gap-3">
           <img
-            src={logoAsset.url}
+            src={logoUrl}
             alt="Prince Group of Companies"
             className="h-9 w-9"
           />
