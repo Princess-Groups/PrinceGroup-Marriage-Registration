@@ -311,7 +311,9 @@ export const getDocumentUploadUrl = createServerFn()
     const sb = supabaseServer();
     const { data: signed } = await sb.storage
       .from(BUCKET)
-      .createSignedUploadUrl(storagePath(data.registration_id, data.doc_key));
+      .createSignedUploadUrl(storagePath(data.registration_id, data.doc_key), {
+        upsert: true,
+      });
 
     if (!signed?.token) {
       throw new Error(
