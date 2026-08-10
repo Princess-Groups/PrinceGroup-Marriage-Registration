@@ -680,9 +680,15 @@ function PaymentPage({
 
   const AMOUNT = 99;
 
+  // Whether the page was opened with the payment already completed. We only
+  // auto-advance on a *fresh* payment (status flipping to paid while mounted),
+  // so that coming Back from a later step doesn't bounce the user straight
+  // forward again and trap them before they can correct their details.
+  const wasPaidOnMount = useRef(data.paymentStatus === "paid");
+
   // Auto-redirect once payment status flips to "paid".
   useEffect(() => {
-    if (paid) {
+    if (paid && !wasPaidOnMount.current) {
       const id = window.setTimeout(onPaid, 600);
       return () => window.clearTimeout(id);
     }
