@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import {
+  ChevronDown,
   ClipboardList,
   FileCheck2,
   Loader2,
@@ -10,7 +11,13 @@ import {
   Users2,
   Wallet,
 } from "lucide-react";
-import { adminLogout, adminSession, listRegistrations } from "@/lib/supabase-server";
+import {
+  adminLogout,
+  adminSession,
+  listRegistrations,
+  type RegistrationRow,
+} from "@/lib/supabase-server";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/")({
   head: () => ({
@@ -31,18 +38,8 @@ type AuthState = "unknown" | "authed" | "anon";
 function AdminPage() {
   const navigate = useNavigate();
   const [auth, setAuth] = useState<AuthState>("unknown");
-  const [subs, setSubs] = useState<
-    {
-      registration_id: string;
-      bride_name: string | null;
-      groom_name: string | null;
-      district: string | null;
-      payment_status: string | null;
-      status: string | null;
-      uploaded_docs: number;
-      created_at: string | null;
-    }[]
-  >([]);
+  const [subs, setSubs] = useState<RegistrationRow[]>([]);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Auth guard — verify the session cookie on the server. The SSR request
@@ -194,12 +191,13 @@ function AdminPage() {
                   <th className="px-4 py-3">Payment</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Submitted</th>
+                  <th className="px-4 py-3 text-right">Details</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {loading && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
+                    <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
                       <span className="inline-flex items-center gap-2">
                         <Loader2 className="h-4 w-4 animate-spin" /> Loading registrations…
                       </span>
@@ -208,46 +206,167 @@ function AdminPage() {
                 )}
                 {!loading && subs.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
+                    <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
                       No registrations yet. Complete the customer flow to see entries here.
                     </td>
                   </tr>
                 )}
                 {subs.map((s) => (
-                  <tr key={s.registration_id} className="hover:bg-secondary/60">
-                    <td className="px-4 py-3 font-mono text-xs text-foreground">
-                      {s.registration_id}
-                    </td>
-                    <td className="px-4 py-3">{s.bride_name || "—"}</td>
-                    <td className="px-4 py-3">{s.groom_name || "—"}</td>
-                    <td className="px-4 py-3">{s.district || "—"}</td>
-                    <td className="px-4 py-3">{s.uploaded_docs}/12</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={
-                          s.payment_status === "paid"
-                            ? "inline-flex rounded-full bg-[color:var(--olive)]/10 px-2 py-0.5 text-xs font-semibold text-primary"
-                            : "inline-flex rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive"
-                        }
-                      >
-                        {s.payment_status === "paid" ? "Paid" : "Pending"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-foreground">
-                        {s.status || "new"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {s.created_at ? new Date(s.created_at).toLocaleString() : "—"}
-                    </td>
-                  </tr>
+                  <Fragment key={s.registration_id}>
+                    <tr
+                      className="hover:bg-secondary/60"
+                      onClick={() =>
+                        setExpanded(expanded === s.registration_id ? null : s.registration_id)
+                      }
+                    >
+                      <td className="px-4 py-3 font-mono text-xs text-foreground">
+                        {s.registration_id}
+                      </td>
+                      <td className="px-4 py-3">{s.bride_name || "—"}</td>
+                      <td className="px-4 py-3">{s.groom_name || "—"}</td>
+                      <td className="px-4 py-3">{s.district || "—"}</td>
+                      <td className="px-4 py-3">{s.uploaded_docs}/12</td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={
+                            s.payment_status === "paid"
+                              ? "inline-flex rounded-full bg-[color:var(--olive)]/10 px-2 py-0.5 text-xs font-semibold text-primary"
+                              : "inline-flex rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive"
+                          }
+                        >
+                          {s.payment_status === "paid" ? "Paid" : "Pending"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-foreground">
+                          {s.status || "new"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {s.created_at ? new Date(s.created_at).toLocaleString() : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-[10px] border px-2.5 py-1 text-xs font-semibold transition",
+                            expanded === s.registration_id
+                              ? "border-[color:var(--olive)] bg-[color:var(--cream)] text-[color:var(--olive-deep)]"
+                              : "border-input bg-background text-foreground hover:bg-secondary",
+                          )}
+                        >
+                          {expanded === s.registration_id ? "Hide" : "View"}
+                          <ChevronDown
+                            className={cn(
+                              "h-3.5 w-3.5 transition-transform",
+                              expanded === s.registration_id && "rotate-180",
+                            )}
+                          />
+                        </span>
+                      </td>
+                    </tr>
+                    {expanded === s.registration_id && (
+                      <tr>
+                        <td colSpan={9} className="bg-background/60 px-4 py-4">
+                          <RegistrationDetail row={s} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ---------- Expanded row: full bride & groom details ---------- */
+
+function RegistrationDetail({ row }: { row: RegistrationRow }) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      {/* Bride */}
+      <div className="rounded-[14px] border border-border bg-card">
+        <div className="border-b border-border bg-[color:var(--cream)]/50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-[color:var(--olive-deep)]">
+          Bride Details
+        </div>
+        <dl className="divide-y divide-border text-sm">
+          <DetailRow label="Name" value={row.bride_name} />
+          <DetailRow label="Age" value={row.bride_age} />
+          <DetailRow label="Contact" value={row.bride_contact} />
+          <DetailRow label="Occupation" value={row.bride_occupation} />
+          <DetailRow label="Village" value={row.bride_village} />
+        </dl>
+      </div>
+
+      {/* Groom */}
+      <div className="rounded-[14px] border border-border bg-card">
+        <div className="border-b border-border bg-[color:var(--cream)]/50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-[color:var(--olive-deep)]">
+          Groom Details
+        </div>
+        <dl className="divide-y divide-border text-sm">
+          <DetailRow label="Name" value={row.groom_name} />
+          <DetailRow label="Age" value={row.groom_age} />
+          <DetailRow label="Contact" value={row.groom_contact} />
+          <DetailRow label="Occupation" value={row.groom_occupation} />
+          <DetailRow label="Village" value={row.groom_village} />
+        </dl>
+      </div>
+
+      {/* Contact & location */}
+      <div className="rounded-[14px] border border-border bg-card">
+        <div className="border-b border-border bg-[color:var(--cream)]/50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-[color:var(--olive-deep)]">
+          Contact & Location
+        </div>
+        <dl className="divide-y divide-border text-sm">
+          <DetailRow label="Mobile" value={row.mobile} />
+          <DetailRow label="WhatsApp" value={row.whatsapp} />
+          <DetailRow label="State" value={row.state} />
+          <DetailRow label="District" value={row.district} />
+          <DetailRow label="City" value={row.city} />
+        </dl>
+      </div>
+
+      {/* Registration info */}
+      <div className="rounded-[14px] border border-border bg-card">
+        <div className="border-b border-border bg-[color:var(--cream)]/50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-[color:var(--olive-deep)]">
+          Registration
+        </div>
+        <dl className="divide-y divide-border text-sm">
+          <DetailRow label="Reg ID" value={row.registration_id} mono />
+          <DetailRow
+            label="Submitted"
+            value={row.created_at ? new Date(row.created_at).toLocaleString() : null}
+          />
+          <DetailRow label="Status" value={row.status || "new"} />
+          <DetailRow
+            label="Payment"
+            value={row.payment_status === "paid" ? "Paid" : "Pending"}
+          />
+          <DetailRow label="Documents" value={`${row.uploaded_docs}/12`} />
+        </dl>
+      </div>
+    </div>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value?: string | null;
+  mono?: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-[minmax(0,130px)_minmax(0,1fr)] items-start gap-3 px-4 py-2.5">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className={cn("min-w-0 font-medium text-foreground", mono && "font-mono text-xs")}>
+        {value || "—"}
+      </dd>
     </div>
   );
 }

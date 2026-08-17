@@ -138,11 +138,24 @@ export type RegistrationRow = {
   registration_id: string;
   bride_name: string | null;
   groom_name: string | null;
+  mobile: string | null;
+  whatsapp: string | null;
   district: string | null;
+  state: string | null;
+  city: string | null;
   payment_status: string | null;
   status: string | null;
   uploaded_docs: number;
   created_at: string | null;
+  // marriage details (bride & groom)
+  bride_age: string | null;
+  groom_age: string | null;
+  bride_contact: string | null;
+  groom_contact: string | null;
+  bride_occupation: string | null;
+  groom_occupation: string | null;
+  bride_village: string | null;
+  groom_village: string | null;
 };
 
 /* ---------------------------------------------------------------------------
@@ -512,7 +525,7 @@ export const listRegistrations = createServerFn()
     const { data: customers } = await sb
       .from("customers")
       .select(
-        "id, registration_id, bride_name, groom_name, district, created_at",
+        "id, registration_id, bride_name, groom_name, mobile, whatsapp, district, state, city, created_at",
       )
       .order("created_at", { ascending: false })
       .limit(200);
@@ -524,6 +537,17 @@ export const listRegistrations = createServerFn()
     let payments: { customer_id: string; status: string }[] = [];
     let statuses: { customer_id: string; status: string }[] = [];
     let docs: { customer_id: string; id: string }[] = [];
+    let marriageDetails: {
+      customer_id: string;
+      bride_age: string | null;
+      groom_age: string | null;
+      bride_contact: string | null;
+      groom_contact: string | null;
+      bride_occupation: string | null;
+      groom_occupation: string | null;
+      bride_village: string | null;
+      groom_village: string | null;
+    }[] = [];
 
     if (ids.length) {
       const results = await Promise.all([
@@ -533,10 +557,16 @@ export const listRegistrations = createServerFn()
           .order("changed_at", { ascending: false })
           .in("customer_id", ids),
         sb.from("documents").select("customer_id, id").in("customer_id", ids),
+        sb.from("marriage_details")
+          .select(
+            "customer_id, bride_age, groom_age, bride_contact, groom_contact, bride_occupation, groom_occupation, bride_village, groom_village",
+          )
+          .in("customer_id", ids),
       ]);
       payments = (results[0].data ?? []) as { customer_id: string; status: string }[];
       statuses = (results[1].data ?? []) as { customer_id: string; status: string }[];
       docs = (results[2].data ?? []) as { customer_id: string; id: string }[];
+      marriageDetails = (results[3].data ?? []) as typeof marriageDetails;
     }
 
     const payMap = new Map(payments.map((p) => [p.customer_id, p.status]));
@@ -550,6 +580,7 @@ export const listRegistrations = createServerFn()
     for (const d of docs) {
       docCountMap.set(d.customer_id, (docCountMap.get(d.customer_id) ?? 0) + 1);
     }
+    const marriageMap = new Map(marriageDetails.map((m) => [m.customer_id, m]));
 
     const list: RegistrationRow[] = rows.map((r) => {
       const c = r as {
@@ -557,19 +588,36 @@ export const listRegistrations = createServerFn()
         registration_id: string;
         bride_name: string | null;
         groom_name: string | null;
+        mobile: string | null;
+        whatsapp: string | null;
         district: string | null;
+        state: string | null;
+        city: string | null;
         created_at: string | null;
       };
+      const m = marriageMap.get(c.id);
       return {
         id: c.id,
         registration_id: c.registration_id,
         bride_name: c.bride_name,
         groom_name: c.groom_name,
+        mobile: c.mobile,
+        whatsapp: c.whatsapp,
         district: c.district,
+        state: c.state,
+        city: c.city,
         payment_status: payMap.get(c.id) ?? null,
         status: statusMap.get(c.id) ?? "new",
         uploaded_docs: docCountMap.get(c.id) ?? 0,
         created_at: c.created_at,
+        bride_age: m?.bride_age ?? null,
+        groom_age: m?.groom_age ?? null,
+        bride_contact: m?.bride_contact ?? null,
+        groom_contact: m?.groom_contact ?? null,
+        bride_occupation: m?.bride_occupation ?? null,
+        groom_occupation: m?.groom_occupation ?? null,
+        bride_village: m?.bride_village ?? null,
+        groom_village: m?.groom_village ?? null,
       };
     });
 
