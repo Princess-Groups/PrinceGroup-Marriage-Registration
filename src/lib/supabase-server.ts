@@ -13,9 +13,51 @@
  */
 
 import { createServerFn } from "@tanstack/react-start";
+import { getCookie, setCookie, deleteCookie } from "@tanstack/react-start/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import {
+  checkAdminCredentials,
+  createAdminCookieValue,
+  isAdminCookieValid,
+  ADMIN_COOKIE,
+} from "./admin-auth";
 
 const BUCKET = "marriage-documents";
+
+/* ---------------------------------------------------------------------------
+ * Admin authentication
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Validate admin credentials and, on success, set a signed auth cookie. This
+ * runs entirely on the server — the credentials never have to live in the
+ * browser bundle.
+ */
+export const adminLogin = createServerFn()
+  .validator((d: { username: string; password: string }) => d)
+  .handler(async ({ data }): Promise<{ ok: boolean }> => {
+    if (!checkAdminCredentials(data.username, data.password)) {
+      return { ok: false };
+    }
+    setCookie(ADMIN_COOKIE, await createAdminCookieValue(), {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+    return { ok: true };
+  });
+
+/** Clear the admin auth cookie. */
+export const adminLogout = createServerFn().handler(async (): Promise<{ ok: boolean }> => {
+  deleteCookie(ADMIN_COOKIE, { path: "/" });
+  return { ok: true };
+});
+
+/** Report whether the current request is authenticated (used by the login page). */
+export const adminSession = createServerFn().handler(async (): Promise<{ authed: boolean }> => {
+  return { authed: await isAdminCookieValid(getCookie(ADMIN_COOKIE)) };
+});
 
 export const DOC_KEYS = [
   "groom_aadhaar",

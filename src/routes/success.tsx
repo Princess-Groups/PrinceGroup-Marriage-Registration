@@ -1,7 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { z } from "zod";
-import { CheckCircle2, Download, Home, PartyPopper } from "lucide-react";
+import {
+  CheckCircle2,
+  Download,
+  Home,
+  MessageCircle,
+  PartyPopper,
+  Phone,
+} from "lucide-react";
 
+const SUPPORT_PHONE = "9559155535";
+const SUPPORT_PHONE_INTL = `+91${SUPPORT_PHONE}`;
+const WHATSAPP_NUMBER = `91${SUPPORT_PHONE}`;
 
 const searchSchema = z.object({ id: z.string().optional() });
 
@@ -75,6 +85,34 @@ verify your documents and contact you shortly on WhatsApp.
                 <span className="font-mono font-semibold text-foreground">{id}</span>
               </div>
             )}
+
+            <div className="mt-8 rounded-[14px] border border-[color:var(--olive)]/25 bg-[color:var(--cream)]/60 p-5 text-left">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--olive-deep)]">
+                Need help? Contact our support
+              </div>
+              <a
+                href={`tel:${SUPPORT_PHONE_INTL}`}
+                className="mt-3 inline-flex items-center gap-2.5 text-lg font-semibold text-foreground transition hover:text-primary"
+              >
+                <span className="grid h-10 w-10 place-items-center rounded-[12px] bg-[color:var(--olive)]/10 text-primary">
+                  <Phone className="h-5 w-5" />
+                </span>
+                <span className="tracking-wide">{SUPPORT_PHONE_INTL}</span>
+              </a>
+              <a
+                href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+                  `Hi Prince Group, I just submitted my marriage registration (Reg ID: ${id || "PG-XXXX"}). Please contact me.`,
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-[14px] bg-[#25D366] px-5 py-3 text-sm font-semibold text-white shadow-md transition hover:opacity-90"
+              >
+                <MessageCircle className="h-4 w-4" /> Chat on WhatsApp
+              </a>
+              <p className="mt-2.5 text-center text-xs text-muted-foreground">
+                Message us on WhatsApp for quick assistance with your application.
+              </p>
+            </div>
 
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <button
