@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { z } from "zod";
 import {
   CheckCircle2,
@@ -12,6 +13,23 @@ import {
 const SUPPORT_PHONE = "9559155535";
 const SUPPORT_PHONE_INTL = `+91${SUPPORT_PHONE}`;
 const WHATSAPP_NUMBER = `91${SUPPORT_PHONE}`;
+
+// Static registration guide (served from /public). We auto-download it once per
+// registration: the success page remembers the last reg-id it already offered
+// the PDF for, so navigating back to this page doesn't re-trigger a download,
+// but a brand-new registration always does.
+const GUIDE_URL = "/Marriage_Registration_Complete_Guide_.pdf";
+const GUIDE_FILENAME = "Marriage-Registration-Complete-Guide.pdf";
+let lastAutoDownloadedId: string | null = null;
+
+function downloadGuide() {
+  const a = document.createElement("a");
+  a.href = GUIDE_URL;
+  a.download = GUIDE_FILENAME;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
 
 const searchSchema = z.object({ id: z.string().optional() });
 
@@ -33,24 +51,14 @@ export const Route = createFileRoute("/success")({
 function SuccessPage() {
   const { id } = Route.useSearch();
 
-  function downloadAck() {
-    const content = `PRINCE GROUP OF COMPANIES
-Marriage Registration Acknowledgement
---------------------------------------
-Registration ID: ${id || "PG-XXXX"}
-Submitted: ${new Date().toLocaleString()}
-
-Thank you for choosing Prince Group. Our executive will
-verify your documents and contact you shortly on WhatsApp.
-`;
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `PrinceGroup-Acknowledgement-${id || "receipt"}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
+  // Trigger the registration guide download as soon as the user lands on the
+  // success page after submitting. Only fires once per registration id, so a
+  // second visit to this page (or another tab) doesn't re-download it.
+  useEffect(() => {
+    if (lastAutoDownloadedId === (id ?? null)) return;
+    lastAutoDownloadedId = id ?? null;
+    downloadGuide();
+  }, [id]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -116,7 +124,7 @@ verify your documents and contact you shortly on WhatsApp.
 
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <button
-                onClick={downloadAck}
+                onClick={downloadGuide}
                 className="inline-flex items-center gap-2 rounded-[14px] gradient-olive px-5 py-3 text-sm font-semibold text-[color:var(--cream)] shadow-md transition hover:opacity-95"
               >
                 <Download className="h-4 w-4" /> Download Acknowledgement
