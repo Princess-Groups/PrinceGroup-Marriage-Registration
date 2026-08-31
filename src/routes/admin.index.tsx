@@ -3,6 +3,7 @@ import { Fragment, useEffect, useState } from "react";
 import {
   ChevronDown,
   ClipboardList,
+  Download,
   FileCheck2,
   Loader2,
   LogOut,
@@ -102,6 +103,66 @@ function AdminPage() {
       .catch(() => navigate({ to: "/admin/login" }));
   }
 
+  function downloadCSV() {
+    if (subs.length === 0) return;
+    const headers = [
+      "Registration ID",
+      "Bride Name",
+      "Groom Name",
+      "Mobile",
+      "WhatsApp",
+      "District",
+      "State",
+      "City",
+      "Bride Age",
+      "Groom Age",
+      "Bride Contact",
+      "Groom Contact",
+      "Bride Occupation",
+      "Groom Occupation",
+      "Bride Village",
+      "Groom Village",
+      "Payment Status",
+      "Status",
+      "Documents Uploaded",
+      "Submitted At",
+    ];
+    const rows = subs.map((s) => [
+      s.registration_id,
+      s.bride_name || "",
+      s.groom_name || "",
+      s.mobile || "",
+      s.whatsapp || "",
+      s.district || "",
+      s.state || "",
+      s.city || "",
+      s.bride_age || "",
+      s.groom_age || "",
+      s.bride_contact || "",
+      s.groom_contact || "",
+      s.bride_occupation || "",
+      s.groom_occupation || "",
+      s.bride_village || "",
+      s.groom_village || "",
+      s.payment_status || "",
+      s.status || "",
+      `${s.uploaded_docs}/15`,
+      s.created_at ? new Date(s.created_at).toLocaleString() : "",
+    ]);
+    const csvContent =
+      "﻿" +
+      [headers.join(","), ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `prince-group-registrations-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   const today = new Date().toDateString();
   const stats = [
     { label: "Total Registrations", value: subs.length, icon: Users2 },
@@ -173,10 +234,21 @@ function AdminPage() {
                 Recent Registrations
               </h2>
             </div>
-            <div className="text-xs text-muted-foreground">
-              {loading
-                ? "Loading…"
-                : `Showing ${subs.length} record${subs.length === 1 ? "" : "s"}`}
+            <div className="flex items-center gap-3">
+              <div className="text-xs text-muted-foreground">
+                {loading
+                  ? "Loading…"
+                  : `Showing ${subs.length} record${subs.length === 1 ? "" : "s"}`}
+              </div>
+              {!loading && subs.length > 0 && (
+                <button
+                  onClick={downloadCSV}
+                  className="inline-flex items-center gap-1.5 rounded-[10px] border border-[color:var(--olive)]/30 bg-[color:var(--cream)] px-3 py-1.5 text-xs font-semibold text-[color:var(--olive-deep)] transition hover:bg-[color:var(--olive)]/10"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Download CSV
+                </button>
+              )}
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -225,7 +297,7 @@ function AdminPage() {
                       <td className="px-4 py-3">{s.bride_name || "—"}</td>
                       <td className="px-4 py-3">{s.groom_name || "—"}</td>
                       <td className="px-4 py-3">{s.district || "—"}</td>
-                      <td className="px-4 py-3">{s.uploaded_docs}/12</td>
+                      <td className="px-4 py-3">{s.uploaded_docs}/15</td>
                       <td className="px-4 py-3">
                         <span
                           className={
@@ -345,7 +417,7 @@ function RegistrationDetail({ row }: { row: RegistrationRow }) {
             label="Payment"
             value={row.payment_status === "paid" ? "Paid" : "Pending"}
           />
-          <DetailRow label="Documents" value={`${row.uploaded_docs}/12`} />
+          <DetailRow label="Documents" value={`${row.uploaded_docs}/15`} />
         </dl>
       </div>
     </div>

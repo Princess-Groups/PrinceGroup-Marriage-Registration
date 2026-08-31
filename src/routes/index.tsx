@@ -200,6 +200,9 @@ const UPLOAD_FIELDS: { key: string; label: string }[] = [
   { key: "groom_mother_aadhaar", label: "Groom Mother Aadhaar Card" },
   { key: "bride_father_aadhaar", label: "Bride Father Aadhaar Card" },
   { key: "bride_mother_aadhaar", label: "Bride Mother Aadhaar Card" },
+  { key: "bride_marriage_invitation", label: "Bride Marriage Invitation" },
+  { key: "groom_marriage_invitation", label: "Groom Marriage Invitation" },
+  { key: "marriage_certificate_religious", label: "Marriage Certificate from Church / Temple / Masjid" },
 ];
 
 const DISTRICTS = [
@@ -854,6 +857,10 @@ const PARENT_UPLOAD_KEYS = [
   "groom_father_aadhaar", "groom_mother_aadhaar",
   "bride_father_aadhaar", "bride_mother_aadhaar",
 ];
+const MARRIAGE_DOC_KEYS = [
+  "bride_marriage_invitation", "groom_marriage_invitation",
+  "marriage_certificate_religious",
+];
 
 function fieldByKey(k: string) {
   return UPLOAD_FIELDS.find((u) => u.key === k)!;
@@ -1019,6 +1026,42 @@ function DetailsForm({
               />
             );
           })}
+        </div>
+
+        {/* Marriage Invitation & Religious Certificate */}
+        <SectionHeader title="Marriage Documents" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          {MARRIAGE_DOC_KEYS.map((k) => {
+            const f = fieldByKey(k);
+            return (
+              <UploadField
+                key={k}
+                label={f.label}
+                regId={data.regId}
+                docKey={k}
+                value={data.documents[k]}
+                onChange={(file) => setUpload(k, file)}
+              />
+            );
+          })}
+        </div>
+
+        {/* Marriage Registration Charges */}
+        <SectionHeader title="Marriage Registration Charges" />
+        <div className="rounded-[14px] border-2 border-[color:var(--olive)]/40 bg-[color:var(--cream)]/70 p-5 text-center">
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--olive-deep)]">
+            Complete Marriage Registration Charges
+          </div>
+          <div className="mt-3 flex items-baseline justify-center gap-1 font-display text-4xl font-semibold text-primary">
+            <IndianRupee className="h-7 w-7" />
+            2,500
+          </div>
+          <p className="mt-1 text-sm font-medium text-[color:var(--olive-deep)]">
+            Starting From ₹2,500
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            This includes processing, documentation & registration charges.
+          </p>
         </div>
 
         {!allValid && (

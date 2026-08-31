@@ -72,6 +72,9 @@ export const DOC_KEYS = [
   "groom_mother_aadhaar",
   "bride_father_aadhaar",
   "bride_mother_aadhaar",
+  "bride_marriage_invitation",
+  "groom_marriage_invitation",
+  "marriage_certificate_religious",
 ] as const;
 
 export type DocKey = (typeof DOC_KEYS)[number];
