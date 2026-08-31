@@ -5,6 +5,7 @@ import {
   ClipboardList,
   Download,
   FileCheck2,
+  FileText,
   Loader2,
   LogOut,
   ShieldCheck,
@@ -15,7 +16,11 @@ import {
 import {
   adminLogout,
   adminSession,
+  getDocumentDownloadUrl,
+  listDocuments,
   listRegistrations,
+  DOC_KEYS,
+  type DocumentRow,
   type RegistrationRow,
 } from "@/lib/supabase-server";
 import { cn } from "@/lib/utils";
@@ -357,6 +362,47 @@ function AdminPage() {
 /* ---------- Expanded row: full bride & groom details ---------- */
 
 function RegistrationDetail({ row }: { row: RegistrationRow }) {
+  const [docs, setDocs] = useState<DocumentRow[]>([]);
+  const [docsLoading, setDocsLoading] = useState(true);
+  const [downloading, setDownloading] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setDocsLoading(true);
+    listDocuments({ data: { registration_id: row.registration_id } })
+      .then((d) => {
+        if (!cancelled) setDocs(d);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setDocsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [row.registration_id]);
+
+  async function downloadDoc(docKey: string, fileName: string) {
+    setDownloading(docKey);
+    try {
+      const res = await getDocumentDownloadUrl({
+        data: { registration_id: row.registration_id, doc_key: docKey as any },
+      });
+      const a = document.createElement("a");
+      a.href = res.downloadUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch {
+      alert("Failed to get download link. The file may not exist.");
+    } finally {
+      setDownloading(null);
+    }
+  }
+
+  const docLabelMap: Record<string, string> = Object.fromEntries(
+    DOC_KEYS.map((k) => [k, k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())])
+  );
+
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       {/* Bride */}
@@ -419,6 +465,62 @@ function RegistrationDetail({ row }: { row: RegistrationRow }) {
           />
           <DetailRow label="Documents" value={`${row.uploaded_docs}/15`} />
         </dl>
+      </div>
+
+      {/* Documents — full width */}
+      <div className="lg:col-span-2 rounded-[14px] border border-border bg-card">
+        <div className="border-b border-border bg-[color:var(--cream)]/50 px-4 py-2 flex items-center justify-between">
+          <span className="text-xs font-semibold uppercase tracking-[0.15em] text-[color:var(--olive-deep)]">
+            Uploaded Documents
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {docsLoading ? "Loading…" : `${docs.length} of ${DOC_KEYS.length} uploaded`}
+          </span>
+        </div>
+        <div className="p-4">
+          {docsLoading ? (
+            <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading documents…
+            </div>
+          ) : docs.length === 0 ? (
+            <div className="py-6 text-center text-sm text-muted-foreground">
+              No documents uploaded yet.
+            </div>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {docs.map((doc) => (
+                <div
+                  key={doc.doc_key}
+                  className="flex items-center gap-3 rounded-[10px] border border-border bg-background p-3"
+                >
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[8px] bg-[color:var(--olive)]/10 text-primary">
+                    <FileText className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-xs font-semibold text-foreground">
+                      {docLabelMap[doc.doc_key] || doc.doc_key}
+                    </div>
+                    <div className="truncate text-[11px] text-muted-foreground">
+                      {doc.file_name} · {(doc.size / 1024).toFixed(0)} KB
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => downloadDoc(doc.doc_key, doc.file_name)}
+                    disabled={downloading === doc.doc_key}
+                    className="shrink-0 inline-flex items-center gap-1 rounded-[8px] border border-[color:var(--olive)]/30 bg-[color:var(--cream)] px-2.5 py-1.5 text-[11px] font-semibold text-[color:var(--olive-deep)] transition hover:bg-[color:var(--olive)]/10 disabled:opacity-50"
+                  >
+                    {downloading === doc.doc_key ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Download className="h-3 w-3" />
+                    )}
+                    Download
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

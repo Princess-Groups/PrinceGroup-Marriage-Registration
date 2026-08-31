@@ -627,6 +627,35 @@ export const listRegistrations = createServerFn()
     return list;
   });
 
+/** List all documents for a given registration (admin document viewer). */
+export type DocumentRow = {
+  doc_key: string;
+  file_name: string;
+  size: number;
+  mime_type: string;
+  storage_path: string;
+};
+
+export const listDocuments = createServerFn()
+  .validator((d: { registration_id: string }) => d)
+  .handler(async ({ data }): Promise<DocumentRow[]> => {
+    const sb = supabaseServer();
+    const { data: customer } = await sb
+      .from("customers")
+      .select("id")
+      .eq("registration_id", data.registration_id)
+      .maybeSingle();
+
+    if (!customer?.id) return [];
+
+    const { data: docs } = await sb
+      .from("documents")
+      .select("doc_key, file_name, size, mime_type, storage_path")
+      .eq("customer_id", customer.id);
+
+    return (docs ?? []) as DocumentRow[];
+  });
+
 /** Signed URL to read a stored document (admin downloads, later). */
 export const getDocumentDownloadUrl = createServerFn()
   .validator((d: { registration_id: string; doc_key: DocKey }) => d)
