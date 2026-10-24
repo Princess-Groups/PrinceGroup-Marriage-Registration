@@ -415,6 +415,11 @@ function PortalPage() {
           lang: lang ?? "en",
         },
       });
+      try {
+        if (typeof window !== "undefined" && (window as any).fbq) {
+          (window as any).fbq("track", "Lead");
+        }
+      } catch {}
       // Keep the draft until confirmation, then clear it.
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(PHASE_KEY);
